@@ -18,7 +18,13 @@ android:orientation="horizontal"
     android:layout_column="0"
     />
 <TextView  
-    android:id="@+id/time"
+    android:id="@+id/active"
+    android:textStyle="bold"
+    android:textSize="15sp"
+    android:layout_column="0"
+    />
+<TextView  
+    android:id="@+id/visible"
     android:textStyle="bold"
     android:textSize="15sp"
     android:layout_column="0"

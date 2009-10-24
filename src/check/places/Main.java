@@ -1,21 +1,29 @@
 package check.places;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Currency;
+import java.util.Date;
 
 import check.places.CellMonitorService.Cell;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.telephony.CellLocation;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.telephony.gsm.GsmCellLocation;
+import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
@@ -46,34 +54,72 @@ public class Main extends Activity {
         updateUI = new Runnable() {
 
 			private Collection<Cell> cells;
-
+			
 			@Override
 			public void run() {
-				
-				((TextView)findViewById(R.id.cell)).setText("Cell: "+CellMonitorService.currentCell.cell_id);
-				((TextView)findViewById(R.id.signal)).setText("Signal: "+CellMonitorService.currentSignal);
+				if (CellMonitorService.currentCell == null) {
+					handler.postDelayed(updateUI, 500);
+					return;
+				}
+				setText2Fit((TextView)findViewById(R.id.cell), "Cell: "+CellMonitorService.currentCell.cell_id);
+				setText2Fit((TextView)findViewById(R.id.signal), "   signal: "+CellMonitorService.currentSignal+"   ");
+				setText2Fit((TextView)findViewById(R.id.time), "running for "+(int)(System.currentTimeMillis()-CellMonitorService.startTime)/60000+" min. " +
+																"Stats collected since "+new SimpleDateFormat("HH:mm").format(new Date(CellMonitorService.startTime)));
 				
 				cells = CellMonitorService.cells.values();
 				
-				for (int i = table.getChildCount(); i < cells.size(); i++) {
+				for (int i = table.getChildCount(); i < cells.size()+1; i++) {
 					table.addView(LayoutInflater.from(Main.this).inflate(R.layout.cell_row, null));
 				}
 				
-				int i = 0;
+				int i = 1;
 				for (Cell cell : cells) {
 					View row = table.getChildAt(i++);
-					((TextView)row.findViewById(R.id.cell)).setText("Cell: "+cell.cell_id+"   ");
-					((TextView)row.findViewById(R.id.signal)).setText("ø Signal: "+(int)cell.signal_avg+"    ");
-					((TextView)row.findViewById(R.id.time)).setText("% Zeit: "+cell.getTimePercentage()+"   ");
+					switch (cell.state) {
+					case Cell.STATE_ACTIVE:
+						row.setBackgroundColor(Color.RED);
+						break;
+					case Cell.STATE_GONE:
+						row.setBackgroundColor(Color.DKGRAY);
+						break;
+					case Cell.STATE_VISIBLE:
+						row.setBackgroundColor(Color.GRAY);
+						break;
+					}
+					((TextView)row.findViewById(R.id.cell)).setText(""+cell.cell_id);
+					((TextView)row.findViewById(R.id.signal)).setText("     "+(int)cell.signal_avg);
+					((TextView)row.findViewById(R.id.active)).setText("     "+cell.getActiveTimePercentage());
+					((TextView)row.findViewById(R.id.visible)).setText("     "+cell.getVisibleTimePercentage());
 				}
 				
-				startService(intent);
+//				startService(intent);
 				handler.postDelayed(updateUI, 3000);
 			}
 		};
 		
 		startService(intent);
-		handler.postDelayed(updateUI, 1000);
+		handler.post(updateUI);
 		
     }
+    
+    private void setText2Fit(TextView view, String text) {
+		float factor = (((ViewGroup)view.getParent()).getWidth()-42) / view.getPaint().measureText(text);
+		view.setTextSize(view.getTextSize()*factor);
+        view.setText(text);
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		menu.add("stop");
+		return super.onCreateOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		stopService(intent);
+		finish();
+		return super.onOptionsItemSelected(item);
+	}
+	
+    
 }
